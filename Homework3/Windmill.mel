@@ -1,0 +1,7 @@
+// rotations per second
+$windmill = `polyCylinder -ax 1 0 0`;
+addAttr -ln "rps" -keyable true -at "float" -dv 1.0 $windmill[0];
+string $expr = "float $frameRate = 24.0;" +
+              "if (frame==0) "+$windmill[0]+".rotateX = 0;" +
+              "else "+$windmill[0]+".rotateX = "+$windmill[0]+".rotateX + 360 * "+$windmill[0]+".rps/$frameRate;";
+expression -s $expr;

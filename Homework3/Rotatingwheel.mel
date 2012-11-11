@@ -1,0 +1,4 @@
+// rotating wheel
+$wheel = `polyCylinder -ax 1 0 0`;
+string $expr = "float $radius = "+$wheel[1]+".radius; "+$wheel[0]+".rotateX = ("+$wheel[0]+".translateZ / (6.2830*$radius)) * 360;";
+expression -s $expr;

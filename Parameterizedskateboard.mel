@@ -1,0 +1,100 @@
+/***************
+ * Homework2.mel
+ * 
+ * Author:      Joel Kuczmarski
+ * Date:        09/23/2012
+ * Description: Create a parameterized skateboard.
+ ************************************************/
+
+/* setup scene... */
+
+// clear the scene
+select -all; delete;
+
+// create base group
+group -em -n "skateboard";
+
+/* define procedures */
+
+proc add_attribute( string $ln,
+                    float $dv ) {
+  addAttr -ln $ln -keyable true -at "float" -dv $dv "skateboard";
+}
+
+proc add_expression( string $string ) {
+    expression -o "skateboard" -s $string;
+}
+
+/* add attributes */
+
+add_attribute( "wheelRadius", 0.8 );
+add_attribute( "axelLength",  3.0 );
+add_attribute( "wheelWidth",  ($wheelRadius * 1.5) );
+add_attribute( "deckLength",  9.0 );
+add_attribute( "deckWidth",   4.0 );
+add_attribute( "deckHeight",  0.5 );
+
+/* create base objects... */
+
+// create the deck
+polyCube -n "deck";
+
+// create an axel
+polyCube -n "axel";
+                
+// create a connector
+polyPyramid -n "connector";
+
+// create a wheel
+polyCylinder -n "wheel";
+
+/* duplicate, group & parent objects... */
+
+// deck
+parent "deck" "skateboard";
+
+// truck
+select -r "connector";
+select -add "axel";
+group -n "truck";
+parent "truck" "skateboard";
+
+// front truck & wheels
+select -r "wheel";
+rotate -z 90.0;
+duplicate -n "wheel2" -ic -rc;
+parent "wheel" "wheel2" "truck";
+
+// back truck & wheels
+select -r "truck";
+duplicate -ic -rc;
+
+/* expressions */
+
+add_expression( "polyCube1.height=(skateboard.deckHeight);" +
+                "polyCube1.depth=(skateboard.deckLength);" +
+                "polyCube1.width=(skateboard.deckWidth);" );
+
+add_expression( "polyCube2.height=(skateboard.deckHeight);" +
+                "polyCube2.depth=(skateboard.deckHeight);" +
+                "polyCube2.width=(skateboard.axelLength);" );
+
+add_expression( "polyPyramid1.sideLength=(skateboard.wheelWidth);" );
+
+add_expression( "polyCylinder1.height=(skateboard.wheelWidth);" +
+                "polyCylinder1.radius=(skateboard.wheelRadius);" + 
+                "wheel.translateX=(skateboard.axelLength*0.5);" + 
+                "wheel2.translateX=(skateboard.axelLength*-0.5);" + 
+                "wheel3.translateX=(skateboard.axelLength*0.5);" + 
+                "wheel4.translateX=(skateboard.axelLength*-0.5);" +
+                "truck.translateZ=(skateboard.deckLength*0.25);" +
+                "truck1.translateZ=(skateboard.deckLength*-0.25);" );
+                
+add_expression( "skateboard.translateY=skateboard.wheelRadius;" );
+
+add_expression( "deck.translateY=skateboard.wheelWidth;" );
+
+add_expression( "connector.translateY=(skateboard.wheelRadius);" + 
+                "connector1.translateY=(skateboard.wheelRadius);" );
+
+select -r "skateboard";

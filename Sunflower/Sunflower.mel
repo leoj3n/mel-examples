@@ -1,0 +1,205 @@
+/********************
+ * Sunflower.mel
+ * 
+ * Author:      Joel KUCZMARSKI
+ * Date:        11/10/2012
+ * Description: Apply texture colors to particle grid.
+ *              Brighter colors are raised more.
+ *****************************************************/
+
+// declare globals
+global string $colorGrp,
+  $edgeGrp,
+  $marginGrp,
+  $selection,
+  $textureBtn,
+  $fileTexture,
+  $_results[]; // please re-use me
+global int $rows = 0;
+
+// ENTRY POINT
+proc entryPoint() {
+    // re-declare globals
+    global string $colorGrp,
+      $edgeGrp,
+      $marginGrp,
+      $selection,
+      $textureBtn,
+      $fileTexture,
+      $_results[];
+    
+    // turn on smooth shading
+    modelEditor -edit -displayAppearance smoothShaded -activeOnly false modelPanel4;
+    
+    // declare / define variables
+    $_results  = `ls -sl`;
+    $selection = $_results[0];
+    
+    // ensure a selection
+    int $count   = `size $_results`;
+    if ($count < 1)
+      error "[sunflower error] NOTHING SELECTED (select an object)\n";
+    
+    // validate the selection
+    string $_selectionType = `objectType $_results[0]`;
+    if( $_selectionType != "transform")
+      error "[sunflower error] INVALID SELECTION (objects only)\n";
+    
+    // create a popup
+    string $_window = `window -rtf true -title "Effects Panel"`;
+    columnLayout -adjustableColumn true;
+      frameLayout -label "Sunflower Effect" -collapsable true -borderStyle "etchedIn";
+        columnLayout -columnAttach "both" 5 -rowSpacing 5 -columnWidth 500;
+          $colorGrp   = `radioButtonGrp     -label "Color duplicates?"      -numberOfRadioButtons 2 -labelArray2 "Yes" "No" -select 1`;
+          $edgeGrp    = `intSliderGrp       -label "Largest edge size"   -min 4 -v 20 -max 60 -field true`;
+          $marginGrp  = `floatSliderGrp     -label "Margin"              -min 1 -v 2  -max 60 -field true`;
+          $textureBtn = `button -label "Load Texture (*.jpg)" -command "load_texture;"`;
+          button -label "Sunflower Effect" -command "sunflower_effect;";
+          button -label "Reset" -command "reset_scene;";
+        setParent ..;
+      setParent ..;
+    setParent ..;
+    showWindow $_window;
+    
+    print "[sunflower success] POPUP CREATED\n";
+}
+
+// SUNFLOWER EFFECT
+proc sunflower_effect() {
+    global string $colorGrp,
+      $edgeGrp,
+      $marginGrp,
+      $selection,
+      $fileTexture,
+      $_results[];
+    global int $rows;
+    
+    print "[sunflower alert] executing sunflower effect!\n";
+    
+    // make sure file texture has been loaded
+    if ($fileTexture == "")
+     error "[sunflower error] NO FILE TEXTURE LOADED!\n";
+    
+    // get option values
+    int    $edge   = `intSliderGrp   -q -v $edgeGrp`;
+    float  $margin = `floatSliderGrp -q -v $marginGrp`;
+    string $color  = `radioButtonGrp -q -select $colorGrp`;
+    
+    // make empty group
+    $_group = `group -em -n "sunflower"`;
+    
+    // determine grid proportions
+    float $ratio,
+      $size[2] = `getAttr ($fileTexture+".outSize")`;
+    int $i, $k, $gridx, $gridy;
+    if ($size[0] > $size[1])
+      $ratio = ($edge/$size[0]); // landscape
+    else
+      $ratio = ($edge/$size[1]); // portrait
+    $gridx = ($size[0]*$ratio);
+    $gridy = ($size[1]*$ratio);
+    
+    // sample proportional u's and v's from texture
+    float $RGB[] = `colorAtPoint -o RGB -su $gridx -sv $gridy $fileTexture`;
+    
+    // make sure selected object is visible before duplication
+    showHidden $selection;
+    
+    // create "pixels" using objecs
+    for( $k = 0; $k < $gridy; $k++ ) {
+      for( $i = 1; $i < $gridx; $i++ ) {
+        int $head = (($i*$gridy*3)+($k*3));
+        float $r = $RGB[$head];
+        float $g = $RGB[$head+1];
+        float $b = $RGB[$head+2];
+        
+        // load color data into shading node
+        string $_mat = `shadingNode -asShader phong`;
+        setAttr ($_mat+".color") -type double3 $r $g $b;
+        
+        // duplicate selection
+        $_results = `duplicate $selection`;
+        select -r $_results[0];
+        
+        if ($color == 1)
+          hyperShade -assign $_mat; // apply material to duplicate
+        
+        // move duplicate
+        move -xz (($i-($gridx/2))*$margin) (($k-($gridy/2))*$margin);
+        move -y (($rows * $margin)+($margin * ($r + $g + $b)));
+        
+        // parent duplicate
+        parent $_results[0] $_group;
+      }
+    }
+    
+    // clean up
+    $rows++;
+    $file = "";
+    hide $selection;
+    select $selection;
+    
+    print "[sunflower success] EFFECT APPLIED TO SELECTION\n";
+}
+
+// LOAD FILE TEXTURE
+proc load_texture() {
+    global string $selection,
+      $fileTexture,
+      $textureBtn;
+    
+    print "[sunflower alert] loading file!\n";
+    
+    // get file path from dialog
+    string $basicFilter = "*.jpg";
+    string $_result[] = `fileDialog2 -ff $basicFilter -ds 2 -fm 1`;
+    
+    // create file texture
+    $fileTexture = create_texture( $_result[0] );
+    
+    // re-select selection
+    select $selection;
+    
+    // set button label
+    button -e -label $_result[0] $textureBtn;
+    
+    print ("[sunflower success] LOADED FILE " + $_result[0] + " \n");
+}
+
+// CREATE FILE TEXTURE
+proc string create_texture( string $filename ) {
+    print "[sunflower alert] creating texture!\n";
+    
+	// create the file texture node
+	$file = `shadingNode -asTexture file`;
+	
+	// set the file texture name of the file node
+	setAttr -type "string" ($file+".ftn") $filename;
+
+    print "[sunflower success] TEXTURE CREATED\n";
+
+	return $file;
+}
+
+// RESET THE SCENE
+proc reset_scene() {
+    global string  $selection,
+      $fileTexture;
+    global int $rows;
+      
+    print "[sunflower alert] resetting scene!\n";
+    
+    // delete all but original object
+    showHidden $selection;
+    select -all;
+    select -d $selection $fileTexture;
+    delete;
+    select $selection;
+    
+    // reset rows
+    $rows = 0;
+    
+    print "[sunflower success] SCENE RESET\n";
+}
+
+entryPoint; // call the entry point

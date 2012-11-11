@@ -1,0 +1,53 @@
+/************
+ * Dialog.mel
+ * 
+ * Author:      Joel KUCZMARSKI
+ * Date:        11/05/2012
+ * Description: Create a dialog that creates primitives.
+ *******************************************************/
+
+// this procedure makes a UI
+global proc makePrimitiveUI() {
+  global string $positionGroup; // declare global variable
+  
+  string $dialogBoxWindow = `window -title "Create a Primitive Object!" -rtf true`;
+  
+  columnLayout;
+    $positionGroup = `floatFieldGrp -label "Input XYZ position" -numberOfFields 3`;
+  rowLayout -nc 3;
+    button -label "polySphere" -command "buttonAction(1, $positionGroup)";
+    button -label "polyCone"   -command "buttonAction(2, $positionGroup)";
+    button -label "polyCube"   -command "buttonAction(3, $positionGroup)";
+  showWindow $dialogBoxWindow;
+}
+
+// button clicks trigger this procedure
+proc buttonAction( int $whichButton, string $floatFieldGrpName ) {
+  float $x = `floatFieldGrp -q -value1 $floatFieldGrpName`;
+  float $y = `floatFieldGrp -q -value2 $floatFieldGrpName`;
+  float $z = `floatFieldGrp -q -value3 $floatFieldGrpName`;
+  
+  makePrimitive( $whichButton, $x, $y, $z ); // please, make the specified primitive
+}
+
+// this procedure is set up so it can be used on its own
+proc makePrimitive( int $type, float $x, float $y, float $z ) {
+  switch( $type ) {
+    case 1:
+      polySphere;
+      break;
+    case 2:
+      polyCone;
+      break;
+    case 3:
+      polyCube;
+      break;
+    default:
+      error -showLineNumber true "Invalid or unsupported object type.";
+      break;
+  } // end switch
+  
+  move $x $y $z; // move to passed XYZ position
+}
+
+makePrimitiveUI; // run the UI-creation procedure

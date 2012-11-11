@@ -1,0 +1,52 @@
+/**********
+ * Gear.mel
+ * 
+ * Author:      Joel KUCZMARSKI
+ * Date:        10/01/1012
+ * Description: Create a parameterized gear.
+ *******************************************/
+
+//select -all; delete; // for testing
+
+// please reuse me
+string $results[];
+
+// declare variables
+  int $numCogs     = 12;
+float $thickness   = 1.0;
+float $cogLength   = 1.0;
+float $outerRadius = 10.0;
+float $innerRadius = 5.0;
+
+// create the polyPipe and catch its name
+$results = `polyPipe -n "gear" -sa (2*$numCogs)`;
+string $_gear = $results[0];
+string $_pipe = $results[1];
+
+// select every other face
+select -clear;
+string $faces[];
+for( $i = 0; $i < $numCogs; $i++ ) {
+    select -add ($_gear + ".f[" + (4*$numCogs+2*$i) + "]");
+}
+
+// extrude faces
+$results = `polyExtrudeFacet`;
+string $_extrudeNode = $results[0];
+
+/* add and connect the attributes */
+
+// add attributes
+addAttr -ln "cogLength"   -keyable true -at "float" -dv $cogLength   $_gear;
+addAttr -ln "thickness"   -keyable true -at "float" -dv $thickness   $_gear;
+addAttr -ln "outerRadius" -keyable true -at "float" -dv $outerRadius $_gear;
+addAttr -ln "innerRadius" -keyable true -at "float" -dv $innerRadius $_gear;
+
+// connect the attributes
+connectAttr ($_gear + ".cogLength") ($_extrudeNode + ".localTranslateZ");
+connectAttr ($_gear + ".thickness") ($_pipe + ".height");
+connectAttr ($_gear + ".outerRadius") ($_pipe + ".radius");
+connectAttr ($_gear + ".innerRadius") ($_pipe + ".thickness");
+
+// select the gear
+select -r $_gear;

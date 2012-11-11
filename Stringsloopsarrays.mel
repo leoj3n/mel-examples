@@ -1,0 +1,12 @@
+float $listLength = 10;
+string $itemName = "This is item #";
+string $fullList[];
+
+for ($i = 0; $i < $listLength; $i++) {
+  $fullList[$i] = ($itemName + $i);
+}
+
+// prove it worked
+for ($i = 0; $i < $listLength; $i++) {
+  print ($fullList[$i] + " of iteration " + $i + ".\n");
+}

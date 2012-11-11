@@ -1,0 +1,83 @@
+/*************
+ * Houses2.mel
+ * 
+ * Author:      Joel KUCZMARSKI
+ * Date:        10/08/1012
+ * Description: Create multiple blocks of houses.
+ ************************************************/
+
+//select -all; delete; // for testing
+
+// please reuse me
+string $_results[];
+
+// declare & define variables
+   int $num  = 10;
+ float $dist = 5.0;
+ float $size = 4.0;
+string $_house;
+string $_houses[];
+string $_temp;
+string $expr = "";
+
+proc string getFullName( string $b, string $s ) {
+  $s = `substitute "|" $s ""`;
+  return $b+"|"+$s;
+}
+
+// find a name not in use
+int $row = 0;
+string $name = "";
+while( $name == "" ) {
+  string $try = "block" + ++$row;
+  int $exists = `objExists $try`;
+  if (!$exists) $name = $try;
+}
+
+// main group
+$_block = `group -em -n $name`;
+
+// add attributes
+addAttr -ln "distanceBetweenHouses" -keyable true -at "float" -dv $dist $_block;
+addAttr -ln "sizeOfHouses"          -keyable true -at "float" -dv $size $_block;
+
+// create houses
+for( $i = 0; $i < $num; $i++ ) {
+  if( $i == 0 ) {
+    // create initial house
+    $_results = `polyCube -n "house"`;
+    
+    // parent to the main group
+    parent $_results[0] $_block;
+    
+    // store initial so we can duplicate later
+    $_house = $_temp = getFullName( $_block, $_results[0] );
+    
+    // move pivot point
+    move 0 -0.5 0 ($_temp+".scalePivot") ($_temp+".rotatePivot");
+    
+    // connect attributes
+    connectAttr ($_block+".sizeOfHouses") ($_temp+".scaleX");
+    connectAttr ($_block+".sizeOfHouses") ($_temp+".scaleY");
+    connectAttr ($_block+".sizeOfHouses") ($_temp+".scaleZ");
+  } else {
+    // duplicate the initial house
+    $_results = `duplicate -rr -ic $_house`;
+    $_temp = getFullName( $_block, $_results[0] );
+  }
+  
+  // add to expression string
+  $expr += ($_temp+".translateX="+$_block+".sizeOfHouses*"+$i+"+"+$_block+".distanceBetweenHouses*"+$i+";");
+  
+  // add new house to houses array
+  $_houses[$i] = $_temp;
+}
+
+// create the expression
+expression -s $expr;
+
+// select the main group
+select -r $_block;
+
+// make rest on ground
+move -yz 0.5 ($row * ($size + $dist) - ($size + $dist));

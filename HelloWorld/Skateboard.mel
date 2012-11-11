@@ -1,0 +1,54 @@
+/****************
+ * Skateboard.mel
+ * 
+ * Author:      Joel Kuczmarski
+ * Date:        09/10/2012
+ * Description: Create a skateboard using some basic commands.
+ *************************************************************/
+
+/* setup scene... */
+
+// clear the scene
+select -ado; delete;
+
+/* create base objects... */
+
+// create the deck
+polyCube -n "deck" -h 0.5 -d 9.0 -w 4.0;
+
+// create an axel
+polyCube -n "axel" -h 0.5 -d 0.5 -w 4.0;
+
+// create a connector
+polyPyramid -n "connector" -w 1.5;
+
+// create a wheel
+polyCylinder -n "wheel" -h 1.5;
+
+/* move, duplicate, group & parent objects... */
+
+// deck
+select -r "deck"; move -a -y 1.5;
+
+// truck
+select -r "connector"; move -a -y 0.8;
+select -add "axel"; group -n "truck";
+parent "truck" "deck";
+
+// front truck & wheels
+select -r "wheel"; rotate -z 90.0; move -a -x 2.0;
+duplicate -n "wheel2"; move -a -x -2.0;
+parent "wheel" "wheel2" "truck";
+select -r "truck";
+move -a -z 2.0;
+
+// back truck & wheels
+duplicate; move -a -z -2.0;
+
+/* finalize scene... */
+
+// make rest on ground
+select -r "deck"; move -r -y 1.0;
+
+// freeze transformations
+makeIdentity -apply true -t 1 -r 1 -s 1 -n 0;

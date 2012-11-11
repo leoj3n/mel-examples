@@ -1,0 +1,80 @@
+/*************
+ * Dominos.mel
+ * 
+ * Author:      Joel KUCZMARSKI
+ * Date:        10/15/2012
+ * Description: Dynamic dominos on a random path.
+ ************************************************/
+
+//select -all; delete; // for testing
+
+// please reuse me
+string $_results[];
+
+// declare & define variables
+   int $numDominos   = rand( 40, 50 ); // 80 seems to be too many
+   int $numPoints    = 15;
+string $curveCommand = "curve"; // default degree is 3
+vector $_point;
+
+for( $p = 0; $p < $numPoints; $p++ ) {
+  $_point = sphrand( 10 );
+  $_point = <<($_point.x+15*$p), 0.0, $_point.z>>;
+  $curveCommand += (" -p " + $_point);
+}
+
+// create curve, capture name
+//print $curveCommand;
+string $_curveName = `eval $curveCommand`;
+scale 0.2 0.2 0.2;
+move -r -25.0 0.0 0.0;
+
+$_result = `polyCube -n "domino" -d 1.25 -h 2.75 -w 0.35`;
+$_domino = $_result[0];
+move 0.0 (2.75/2.0) 0.0;
+move 0.0 0.0 0.0 ($_domino + ".scalePivot") ($_domino + ".rotatePivot");
+
+// create the gravity field
+select -cl;
+$_results = `gravity -m 98.0 -dx 0.0 -dy -1.0 -dz 0.0`;
+string $_gravity = $_results[0];
+
+// create the floor, a passive rigid body
+polyPlane -n "floor" -w 125.0 -h 125.0 -sx 1 -sy 1;
+rigidBody -passive;
+
+// set the path animation
+select -r $_curveName $_domino;
+string $_path = `pathAnimation -fractionMode true -follow true -followAxis x -upAxis y -worldUpType "vector" -worldUpVector 0 1 0 -inverseUp false -inverseFront false -bank false -startTimeU 0 -endTimeU $numDominos`;
+
+selectKey -cl; // make sure no keyframes are selected
+selectKey -add -k -t 0 -t $numDominos $_path;
+keyTangent -itt linear -ott linear;
+
+string $first;
+// duplicate the domino at each frame
+for( $d = 0; $d < $numDominos; $d++ ) {
+  if ($d == 1)
+    continue; // skip second domino
+
+  currentTime $d;
+  $_results = `duplicate $_domino`;
+  string $_dup = $_results[0];
+  select $_dup;
+  rigidBody -active;
+  connectDynamic -f $_gravity $_dup;
+  
+  if ($d == 0)
+    $first = $_dup; // record first domino
+}
+
+// delete the first domino
+delete $_domino;
+
+// rotate first domino
+select -r $first;
+rotate -r -os -z -20;
+
+// set playback options
+playbackOptions -e -playbackSpeed 0 -maxPlaybackSpeed 1;
+playbackOptions -min 1 -max 800;

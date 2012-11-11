@@ -1,0 +1,76 @@
+/************************
+ * Instancedparticles.mel
+ * 
+ * Author:      Joel KUCZMARSKI
+ * Date:        10/22/2012
+ * Description: Create particle system from duplicated object.
+ *************************************************************/
+
+//select -all; delete; // for testing
+
+// please reuse me
+string $_results[];
+
+// declare & define variables
+string $selObjs[] = `ls -sl`;
+ float   $sizeObj = size( $selObjs );
+
+// if more than 0 objects selected
+if( $sizeObj )
+{
+  string      $objList[];
+  string $selectedObject = $selObjs[0];
+     int        $numObjs = 13;
+  
+  // make duplicates over time
+  for( $o = 0; $o < $numObjs; $o++ ) {
+    currentTime ($o + 1);
+    $_results = `duplicate $selectedObject`;
+    $objList[$o] = $_results[0];
+  }
+  
+  // create emitter
+  $_results = `emitter -pos 0 0 0 -type omni -r 100 -sro 0 -nuv 0 -cye none -cyi 1 -spd 55 -srn 0 -nsp 1 -tsp 0 -mxd 0 -mnd 0 -dx 1 -dy 0 -dz 0 -sp 0`;
+  string $emitter = $_results[0];
+  
+  // creat the nParticle
+              $_results = `nParticle`;
+  string      $particle = $_results[0];
+  string $particleShape = $_results[1];
+  
+  // connect particle to emitter
+  connectDynamic -em $emitter $particle;
+  
+  select $objList $particleShape;
+  // create instance command
+  string $instanceCommand = "particleInstancer -a ";
+  for( $i = 0; $i < $numObjs; $i++ ) {
+    $instanceCommand += ("-obj " + $objList[$i] + " ");
+  }
+  $instanceCommand += ("-cycle Sequential -cycleStep 1 -cycleStepUnits Frames -levelOfDetail Geometry -rotationUnits Degrees -rotationOrder XYZ -position worldPosition -aimDirection worldVelocity -age age ");
+  $instanceCommand += $particleShape;
+  
+  // grab the instancer by evaluating $instanceCommand
+  string $particleInstancer = `eval $instanceCommand`;
+  
+  // put $objList objects into a group
+  group -n AnimatedObjects $objList;
+  
+  // hide the first object
+  hide $selectedObject;
+  
+  // randomize start point of instancer
+  select $particleShape;
+  addAttr -ln "randIndx" -dt doubleArray -k true;
+  dynExpression -s ("randIndx = rand( 0, " + $numObjs + " );") -c; // dynamic expression, on object creation
+  
+  // ignore gravity
+  setAttr ($particleShape + ".ignoreSolverGravity") 1; // nParticleShape1.ignoreSolverGravity
+  
+  // edit "cycleStartObject" of particle instancer, set it to randIndx
+  particleInstancer -e -name $particleInstancer -cycleStartObject randIndx;
+}
+else
+{
+  print "Nothing selected.";
+}

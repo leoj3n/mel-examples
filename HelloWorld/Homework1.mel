@@ -1,0 +1,117 @@
+/***************
+ * Homework1.mel
+ * 
+ * Author:      Joel KUCZMARSKI
+ * Date:        09/14/2012
+ * Description: Create a basic rotating object.
+ **********************************************/
+
+/* define variable(s)... */
+
+// max playback time
+global float $maxTime = 2000.0;
+
+/* define procedure(s)... */
+
+// smooth rotate/roll expression
+proc rollExp( string $name, float $t ) {
+  customExp( $name, "translateY", "cos", $t, 0.46, 0.90, 8.0 );
+  customExp( $name, "rotateX", "cos", $t, 0.20, 0.70, 60.0 );
+  customExp( $name, "rotateY", "cos", $t, 0.20, 0.70, 20.0 );
+  customExp( $name, "rotateZ", "sin", $t, 0.46, 0.95, 20.0 );
+}
+
+// custom expression generator
+proc customExp( string $name,      // name of object to act upon
+                string $attribute, // eg: translateX, rotateY, etc...
+                string $mathFunc,  // eg: sin, cos, etc...
+                float $t,          // total duration of animation
+                float $frac1,      // smoothstep start percentage
+                float $frac2,      // smoothstep end percentage
+                float $multiplier ) {
+                    
+  string $exp = 
+    "$start_stop=smoothstep(" + 
+      ($t * $frac1) + "," + 
+      ($t * $frac2 * 0.5) + ",frame)*(1-smoothstep(" + 
+      ($t * $frac2 * 0.5) + "," + 
+      ($t) + ",frame));" +
+      $name + "." + $attribute + "=" + getAttr( $name + "." + $attribute ) + 
+      "+" + $mathFunc + "(frame/" + $t * 0.1 + ")*" + $multiplier + "*$start_stop;";
+    
+  expression -object $name -string $exp;
+}
+
+/* setup scene... */
+
+// clear the scene
+select -ado; delete;
+
+// set playback min/max time
+playbackOptions -minTime 0 -maxTime $maxTime;
+
+/* create base objects... */
+
+// head
+polySphere -r 4 -n "head"; move -a -yz 1.0 -3.0;
+
+// left eye
+polySphere -n "leftEye"; move -a -xy -1.5 2.0;
+
+// right eye
+polySphere -n "rightEye"; move -a -xy 1.5 2.0;
+
+// nose
+polyPyramid -n "nose"; move -a -yz 1.0 1.2; rotate -a -x 90.0;
+
+// upper lip
+polySphere -n "upperLip"; move -a -y -0.5; scale -r -xy 2.0 0.5;
+
+// lower lip
+polySphere -n "lowerLip"; move -a -y -1.0; scale -r -xy 1.8 0.5;
+
+// left ear
+polyPyramid -w 2.0 -n "leftEar"; move -a 1.5 4.5 -1.5; rotate -a -xz 15.0 -15.0;
+
+// right ear
+polyPyramid -w 2.0 -n "rightEar"; move -a -1.5 4.5 -1.5; rotate -a -xz 15.0 15.0;
+
+// left foot
+polySphere -n "leftFoot"; move -a 2.0 -2.5 -1.0; rotate -r -y 15.0; scale -r 1.2 0.3 2.5;
+
+// right foot
+polySphere -n "rightFoot"; move -a -2.0 -2.5 -1.0; rotate -r -y -15.0; scale -r 1.2 0.3 2.5;
+
+/* group & parent objects... */
+
+// eyes
+group -n "eyes" "leftEye" "rightEye";
+
+// lips
+group -n "lips" "lowerLip" "upperLip";
+
+// ears
+group -n "ears" "leftEar" "rightEar";
+
+// feet
+group -n "feet" "leftFoot" "rightFoot";
+
+// parent groups to head
+parent "eyes" "lips" "ears" "feet" "nose" "head";
+
+/* finish up... */
+
+// move everyhting up to rest on ground
+select -r "head"; move -r -y 2.8;
+
+// rotate nose over playback duration
+for( $i = 0; $i < $maxTime; $i++ ) {
+  float $rot = $i * (360.0 / $maxTime);
+  setKeyframe -t $i -at "rotateZ" -v $rot "nose";
+}
+
+// add head roll expression
+rollExp( "head", $maxTime );
+
+// play animation
+play;

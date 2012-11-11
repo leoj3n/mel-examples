@@ -1,0 +1,55 @@
+/*************
+ * Barbell.mel
+ * 
+ * Author:      Joel KUCZMARSKI
+ * Date:        09/23/2012
+ * Description: Create a resizeable barbell.
+ *******************************************/
+ 
+// clear scene
+select -all; delete;
+
+// setup parameters (variables)
+float $barRadius = 0.3;
+float $bellRadius = 1.0;
+float $barLength = 10.0;
+
+// create bell objects
+$bell1 = `polySphere -n "bell1" -r $bellRadius`;
+move -a -x ($barLength/2.0*-1.0);
+$bell2 = `duplicate -n "bell2" $bell1[0]`;
+move -a -x ($barLength/2.0);
+
+// create bar object
+$bar = `polyCylinder -n "bar" -r $barRadius -h $barLength`;
+rotate -a -z 90.0;
+
+// group the objects together
+string $barbell = `group -n "barbell" $bar $bell1 $bell2`;
+
+/***************************************/
+
+// add attributes
+addAttr
+	-ln "barLength" // -ln = long name
+	-keyable true   // shows up in channel box
+	-at double      // attribute type
+	-min 0          // min value
+	-dv $barLength  // default value
+	$barbell;       // the object to add this attribute to
+
+// connect attributes
+connectAttr -f ($barbell+".barLength") "polyCylinder1.height";
+
+createNode -n "md" multiplyDivide;
+
+connectAttr ($barbell+".barLength") md.input1X;
+connectAttr ($barbell+".barLength") md.input1Y;
+
+setAttr md.input2X  0.5;
+setAttr md.input2Y -0.5;
+
+connectAttr md.outputX ($bell1[0]+".translateX");
+connectAttr md.outputY ($bell2[0]+".translateX");
+
+select -r "barbell";

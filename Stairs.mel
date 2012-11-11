@@ -1,0 +1,65 @@
+/************
+ * Stairs.mel
+ * 
+ * Author:      Joel KUCZMARSKI
+ * Date:        10/29/2012
+ * Description: Function to make spiral staircases.
+ **************************************************/
+
+// please reuse me
+string $_results[];
+
+proc string spiralStaircase( 
+  int   $numSteps,
+  float $stepGap,    // vertical gap between steps
+  float $stepRotate, // rotation from one step to the next
+  float $offset,     // offset from column, negative is in, positive out
+  float $stepHeight,
+  float $stepWidth,
+  float $stepDepth,
+  int   $hasColumn,
+  float $columnRadius ) {
+
+  // create an empty group for the steps
+  $steps = `group -em`;
+
+  // column for staircase?
+  if( $hasColumn ) {
+    // height = (number of steps * (step height + step gap))
+    float $h = ($numSteps*($stepHeight+$stepGap));
+    $_results = `polyCylinder -h $h -r $columnRadius`;
+    
+    select $_results[0];
+    move 0 ($h/2) 0;            // move the column up to the floor plane
+    xform -ws -piv 0 0 0;       // set pivot point
+    parent $_results[0] $steps; // parent column to steps group
+  }
+  
+  // create the steps
+  for( $s = 0; $s < $numSteps; $s++ ) {
+    $_results = `polyCube -h $stepHeight -w $stepWidth -d $stepDepth -n "step"`;
+    string $step = $_results[0];
+  
+    // move into place (x-axis)
+    move ($columnRadius + $offset + ($stepWidth / 2)) ($s * ($stepGap + $stepHeight) + ($stepHeight / 2)) 0;
+  
+    // rotate around pivot point (y-axis)
+    rotate -p 0 0 0  0 ($s * $stepRotate) 0;
+    
+    // group step into steps
+    parent $step $steps;
+  }
+
+  // return name of group
+  return $steps;
+}
+
+/* now we can call the procedure three times! */
+
+string $stairs1 = spiralStaircase( 30, .2, 15, .2, .2, 3, 1, true, .2 );
+select $stairs1; move 10 0 0;
+
+string $stairs2 = spiralStaircase( 45, .1, 10, .5, .1, .1, 5, true, 5 );
+
+string $stairs3 = spiralStaircase( 6, 1, 1, 1, 1, 1, 1, true, 1 );
+select $stairs3; move -10 0 0;

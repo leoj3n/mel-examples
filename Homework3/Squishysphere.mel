@@ -1,0 +1,4 @@
+// squishy sphere
+$squishy = `polySphere`;
+string $expr = $squishy[0]+".scaleX = 1/sqrt("+$squishy[0]+".scaleY); "+$squishy[0]+".scaleZ = 1/sqrt("+$squishy[0]+".scaleY);";
+expression -s $expr;
