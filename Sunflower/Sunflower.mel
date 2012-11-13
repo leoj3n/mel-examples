@@ -2,29 +2,43 @@
  * Sunflower.mel
  * 
  * Author:      Joel KUCZMARSKI
- * Date:        11/10/2012
+ * Date:        11/13/2012
  * Description: Apply texture colors to particle grid.
- *              Brighter colors are raised more.
+ *              Brighter colors are raised.
  *****************************************************/
 
 // declare globals
-global string $colorGrp,
+global string $window,
+  $colorGrp,
   $edgeGrp,
   $marginGrp,
+  $sunflowers,
   $selection,
   $textureBtn,
+  $applyBtn,
+  $resetBtn,
   $fileTexture,
   $_results[]; // please re-use me
-global int $rows = 0;
+global int $runs = 0;
 
 // ENTRY POINT
 proc entryPoint() {
+    // make sure only one window
+    if (`windowPref -exists windowSunflower`)
+      windowPref -remove windowSunflower;
+    if (`window -exists windowSunflower`)
+      deleteUI -window windowSunflower;
+    
     // re-declare globals
-    global string $colorGrp,
+    global string $window,
+      $colorGrp,
       $edgeGrp,
       $marginGrp,
+      $sunflowers,
       $selection,
       $textureBtn,
+      $applyBtn,
+      $resetBtn,
       $fileTexture,
       $_results[];
     
@@ -38,28 +52,33 @@ proc entryPoint() {
     // ensure a selection
     int $count   = `size $_results`;
     if ($count < 1)
-      error "[sunflower error] NOTHING SELECTED (select an object)\n";
+      error_popup( "NOTHING SELECTED (select an object)" );
     
     // validate the selection
     string $_selectionType = `objectType $_results[0]`;
     if( $_selectionType != "transform")
-      error "[sunflower error] INVALID SELECTION (objects only)\n";
+      error_popup( "INVALID SELECTION (objects only)" );
     
     // create a popup
-    string $_window = `window -rtf true -title "Effects Panel"`;
+    $window = `window -rtf true -title "Sunflower Effect" windowSunflower`;
     columnLayout -adjustableColumn true;
-      frameLayout -label "Sunflower Effect" -collapsable true -borderStyle "etchedIn";
+      frameLayout -label "Settings" -collapsable true;
         columnLayout -columnAttach "both" 5 -rowSpacing 5 -columnWidth 500;
           $colorGrp   = `radioButtonGrp     -label "Color duplicates?"      -numberOfRadioButtons 2 -labelArray2 "Yes" "No" -select 1`;
           $edgeGrp    = `intSliderGrp       -label "Largest edge size"   -min 4 -v 20 -max 60 -field true`;
           $marginGrp  = `floatSliderGrp     -label "Margin"              -min 1 -v 2  -max 60 -field true`;
           $textureBtn = `button -label "Load Texture (*.jpg)" -command "load_texture;"`;
-          button -label "Sunflower Effect" -command "sunflower_effect;";
-          button -label "Reset" -command "reset_scene;";
+        setParent ..;
+      setParent ..;
+      frameLayout -label "Actions" -collapsable true;
+        rowLayout -numberOfColumns 3;
+          $applyBtn = `button -label "Apply" -command "sunflower_effect;" -en off`;
+          $resetBtn = `button -label "Reset" -command "reset_scene;" -en off`;
+          button -label "Cancel" -command "deleteUI $window;";
         setParent ..;
       setParent ..;
     setParent ..;
-    showWindow $_window;
+    showWindow $window;
     
     print "[sunflower success] POPUP CREATED\n";
 }
@@ -69,16 +88,22 @@ proc sunflower_effect() {
     global string $colorGrp,
       $edgeGrp,
       $marginGrp,
+      $sunflowers,
       $selection,
+      $resetBtn,
       $fileTexture,
       $_results[];
-    global int $rows;
+    global int $runs;
     
     print "[sunflower alert] executing sunflower effect!\n";
     
     // make sure file texture has been loaded
     if ($fileTexture == "")
-     error "[sunflower error] NO FILE TEXTURE LOADED!\n";
+     error_popup( "NO FILE TEXTURE LOADED!" );
+    
+    // make empty master group if missing
+    int $_exists = `objExists "sunflowers"`;
+    if (!$_exists) $sunflowers = `group -em -n "sunflowers"`;
     
     // get option values
     int    $edge   = `intSliderGrp   -q -v $edgeGrp`;
@@ -86,7 +111,8 @@ proc sunflower_effect() {
     string $color  = `radioButtonGrp -q -select $colorGrp`;
     
     // make empty group
-    $_group = `group -em -n "sunflower"`;
+    $_group = `group -em -n ("sunflower" + $runs)`;
+    parent $_group $sunflowers; // parent to master group
     
     // determine grid proportions
     float $ratio,
@@ -126,7 +152,7 @@ proc sunflower_effect() {
         
         // move duplicate
         move -xz (($i-($gridx/2))*$margin) (($k-($gridy/2))*$margin);
-        move -y (($rows * $margin)+($margin * ($r + $g + $b)));
+        move -y (($runs * $margin)+($margin * ($r + $g + $b)));
         
         // parent duplicate
         parent $_results[0] $_group;
@@ -134,10 +160,13 @@ proc sunflower_effect() {
     }
     
     // clean up
-    $rows++;
+    $runs++;
     $file = "";
     hide $selection;
     select $selection;
+    
+    // enable reset button
+    button -e -en on $resetBtn;
     
     print "[sunflower success] EFFECT APPLIED TO SELECTION\n";
 }
@@ -146,7 +175,8 @@ proc sunflower_effect() {
 proc load_texture() {
     global string $selection,
       $fileTexture,
-      $textureBtn;
+      $textureBtn,
+      $applyBtn;
     
     print "[sunflower alert] loading file!\n";
     
@@ -162,6 +192,9 @@ proc load_texture() {
     
     // set button label
     button -e -label $_result[0] $textureBtn;
+    
+    // enable apply button
+    button -e -en on $applyBtn;
     
     print ("[sunflower success] LOADED FILE " + $_result[0] + " \n");
 }
@@ -183,23 +216,53 @@ proc string create_texture( string $filename ) {
 
 // RESET THE SCENE
 proc reset_scene() {
-    global string  $selection,
-      $fileTexture;
-    global int $rows;
+    global string  $sunflowers,
+      $resetBtn,
+      $selection;
+    global int $runs;
+    
+    if( yesno_popup( "Are you sure you want to reset the scene?" ) ) {
+      print "[sunflower alert] resetting scene!\n";
+    
+      // delete all sunflowers
+      delete $sunflowers;
       
-    print "[sunflower alert] resetting scene!\n";
+      // show and select original object
+      showHidden $selection;
+      select $selection;
     
-    // delete all but original object
-    showHidden $selection;
-    select -all;
-    select -d $selection $fileTexture;
-    delete;
-    select $selection;
-    
-    // reset rows
-    $rows = 0;
-    
-    print "[sunflower success] SCENE RESET\n";
+      // reset runs
+      $runs = 0;
+      
+      // disable reset button
+      button -e -en off $resetBtn;
+      
+      print "[sunflower success] SCENE RESET\n";
+    }
+}
+
+// ERROR POPUP
+proc error_popup( string $msg ) {
+  confirmDialog
+    -title "Sunflower Error!"
+    -message $msg
+    -button "OK"
+    -defaultButton "OK";
+
+  error ("[sunflower error] " + $msg + "\n");
+}
+
+// YES / NO POPUP
+proc int yesno_popup( string $msg ) {
+  string $confirm = `confirmDialog
+    -title "Yes or No?"
+    -message $msg
+    -button "Yes"
+    -button "No"
+    -defaultButton "No"
+    -cancelButton "No"`;
+
+  return ($confirm == "Yes");
 }
 
 entryPoint; // call the entry point
